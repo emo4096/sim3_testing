@@ -31,7 +31,7 @@ def generate_backtest_chart(start_date, end_date):
     con.close()
 
     if df.empty:
-        return None, None
+        return None, None, None
 
     df = df[df["y"] <= 100000]
     model = load(MODEL)
@@ -76,7 +76,57 @@ def generate_backtest_chart(start_date, end_date):
     fig.update_layout(title='Actual vs Predicted Sales', xaxis_title='Date', yaxis_title='Sales ($)')
     chart_div = pio.to_html(fig, full_html=False)
     
-    return chart_div, metrics
+    # Generate residuals histogram
+    residuals = y_true - y_pred
+    residuals_chart = generate_residuals_histogram(residuals)
+    
+    return chart_div, metrics, residuals_chart
+
+
+def generate_residuals_histogram(residuals):
+    """Generate histogram of residuals to visualize prediction errors and bias"""
+    fig = go.Figure()
+    
+    fig.add_trace(
+        go.Histogram(
+            x=residuals,
+            nbinsx=30,
+            name='Residuals',
+            marker=dict(
+                color='lightblue',
+                line=dict(color='darkblue', width=1)
+            ),
+            hovertemplate='Error: $%{x:,.2f}<br>Count: %{y}<extra></extra>'
+        )
+    )
+    
+    # Add vertical line at zero to show ideal (no bias)
+    fig.add_vline(
+        x=0,
+        line_dash="dash",
+        line_color="red",
+        annotation_text="Zero Error",
+        annotation_position="top"
+    )
+    
+    # Add vertical line at mean to show bias
+    mean_residual = np.mean(residuals)
+    fig.add_vline(
+        x=mean_residual,
+        line_dash="dot",
+        line_color="green",
+        annotation_text=f"Mean: ${mean_residual:,.2f}",
+        annotation_position="bottom"
+    )
+    
+    fig.update_layout(
+        title='Residuals Distribution (Actual - Predicted)',
+        xaxis_title='Residual ($)',
+        yaxis_title='Frequency',
+        showlegend=False
+    )
+    
+    return pio.to_html(fig, full_html=False)
 
 
 def generate_future_chart(start_date, end_date):
@@ -133,6 +183,7 @@ def dashboard(request):
     # Get cached charts from session
     chart_div = request.session.get('chart_div')
     metrics = request.session.get('metrics')
+    residuals_chart = request.session.get('residuals_chart')
     future_chart_div = request.session.get('future_chart_div')
     future_warning = request.session.get('future_warning')
     date_error = None
@@ -156,12 +207,13 @@ def dashboard(request):
                 request.session['backtest_start'] = start_date
                 request.session['backtest_end'] = end_date
                 
-                # Generate new backtest chart
-                chart_div, metrics = generate_backtest_chart(start_date, end_date)
+                # Generate new backtest chart and residuals
+                chart_div, metrics, residuals_chart = generate_backtest_chart(start_date, end_date)
                 
                 # Store in session
                 request.session['chart_div'] = chart_div
                 request.session['metrics'] = metrics
+                request.session['residuals_chart'] = residuals_chart
 
         # Handle future prediction form
         elif "future_submit" in request.POST:
@@ -208,9 +260,10 @@ def dashboard(request):
     # Generate default charts on first load (no session data)
     else:
         if not chart_div:
-            chart_div, metrics = generate_backtest_chart(default_backtest_start, default_backtest_end)
+            chart_div, metrics, residuals_chart = generate_backtest_chart(default_backtest_start, default_backtest_end)
             request.session['chart_div'] = chart_div
             request.session['metrics'] = metrics
+            request.session['residuals_chart'] = residuals_chart
             request.session['backtest_start'] = default_backtest_start
             request.session['backtest_end'] = default_backtest_end
         
@@ -223,6 +276,7 @@ def dashboard(request):
     return render(request, "app/dashboard.html", {
         "chart_div": chart_div,
         "metrics": metrics,
+        "residuals_chart": residuals_chart,
         "min_date": min_date,
         "max_date": max_date,
         "future_chart_div": future_chart_div,
