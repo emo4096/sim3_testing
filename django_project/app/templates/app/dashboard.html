@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <title>Dashboard</title>
   <style>
@@ -8,18 +7,15 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-
     h1 {
       text-align: center;
     }
-
     .section {
       margin-bottom: 40px;
       padding: 20px;
       border: 1px solid #ddd;
       border-radius: 5px;
     }
-
     .warning {
       background-color: #fff3cd;
       border: 1px solid #ffc107;
@@ -28,7 +24,6 @@
       margin: 10px 0;
       border-radius: 4px;
     }
-
     .error {
       background-color: #f8d7da;
       border: 1px solid #f5c6cb;
@@ -37,21 +32,17 @@
       margin: 10px 0;
       border-radius: 4px;
     }
-
     form {
       margin-bottom: 20px;
     }
-
     label {
       margin-right: 10px;
       font-weight: bold;
     }
-
     input[type="date"] {
       margin-right: 20px;
       padding: 5px;
     }
-
     button {
       padding: 8px 16px;
       background-color: #007bff;
@@ -60,16 +51,13 @@
       border-radius: 4px;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #0056b3;
     }
   </style>
 </head>
-
 <body>
   <h1>Dashboard</h1>
-
   <!-- Backtesting Section -->
   <div class="section">
     <h2>Model Back-testing</h2>
@@ -77,18 +65,14 @@
       {% csrf_token %}
       <label for="start_date">Start Date:</label>
       <input type="date" name="start_date" min="{{ min_date }}" max="{{ max_date }}" value="{{ current_backtest_start }}" required>
-
       <label for="end_date">End Date:</label>
       <input type="date" name="end_date" min="{{ min_date }}" max="{{ max_date }}" value="{{ current_backtest_end }}" required>
-
       <button type="submit" name="backtest_submit">Run Backtest</button>
     </form>
-
     {% if chart_div %}
     <!-- Plotly chart -->
     {{ chart_div|safe }}
     {% endif %}
-
     {% if metrics %}
     <h3>Metrics</h3>
     <ul>
@@ -99,8 +83,17 @@
       <li>MPE: {{ metrics.MPE }}</li>
     </ul>
     {% endif %}
+    {% if residuals_chart %}
+    <!-- Residuals histogram -->
+    <h3>Error Distribution</h3>
+    <p style="color: #666; font-size: 14px;">
+      This histogram shows the distribution of prediction errors. 
+      A distribution centered at zero indicates an unbiased model. 
+      Errors to the left (negative) mean the model over-predicted; errors to the right (positive) mean it under-predicted.
+    </p>
+    {{ residuals_chart|safe }}
+    {% endif %}
   </div>
-
   <!-- Future Predictions Section -->
   <div class="section">
     <h2>Future Sales Predictions</h2>
@@ -108,30 +101,24 @@
       {% csrf_token %}
       <label for="future_start_date">Start Date:</label>
       <input type="date" name="future_start_date" min="{{ future_min_date }}" value="{{ current_future_start }}" required>
-
       <label for="future_end_date">End Date:</label>
       <input type="date" name="future_end_date" min="{{ future_min_date }}" value="{{ current_future_end }}" required>
-
       <button type="submit" name="future_submit">Generate Predictions</button>
     </form>
-
     {% if date_error %}
     <div class="error">
       {{ date_error }}
     </div>
     {% endif %}
-
     {% if future_warning %}
     <div class="warning">
       {{ future_warning }}
     </div>
     {% endif %}
-
     {% if future_chart_div %}
     <!-- Plotly chart for future predictions -->
     {{ future_chart_div|safe }}
     {% endif %}
   </div>
 </body>
-
 </html>
