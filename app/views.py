@@ -10,7 +10,7 @@ from django.shortcuts import render, redirect
 from neuralprophet import load
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-DATABASE = "/content/ecommerce_data.db"
+DATABASE = "/content/ecommerce_data.sqlite3"
 BACKTEST_MODEL = "/content/sales_forecast_model_backtest.np"
 PRODUCTION_MODEL = "/content/sales_forecast_model_production.np"
 
