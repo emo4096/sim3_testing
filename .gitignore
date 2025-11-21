@@ -1,3 +1,4 @@
 .config/
 lightning_logs/
 .idea/
+__pycache__/
