@@ -1,69 +1,9 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <title>Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    h1 {
-      text-align: center;
-    }
-    .section {
-      margin-bottom: 40px;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
-    .warning {
-      background-color: #fff3cd;
-      border: 1px solid #ffc107;
-      color: #856404;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 4px;
-    }
-    .error {
-      background-color: #f8d7da;
-      border: 1px solid #f5c6cb;
-      color: #721c24;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 4px;
-    }
-    .info {
-      background-color: #d1ecf1;
-      border: 1px solid #bee5eb;
-      color: #0c5460;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    form {
-      margin-bottom: 20px;
-    }
-    label {
-      margin-right: 10px;
-      font-weight: bold;
-    }
-    input[type="date"], input[type="number"] {
-      margin-right: 20px;
-      padding: 5px;
-    }
-    button {
-      padding: 8px 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-  </style>
+  <link href="{% static 'app/styles.css' %}" rel="stylesheet">
 </head>
 <body>
   <h1>Dashboard</h1>
