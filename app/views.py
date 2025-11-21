@@ -47,24 +47,12 @@ def generate_historical_sales_chart(start_date, end_date):
 
     # Create Plotly figure
     fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=df['ds'],
-        y=df['y'],
-        mode='lines',
-        name='Sales',
-        line=dict(color='#007bff'),
-        hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'
-    ))
 
-    fig.update_layout(
-        title='Daily Sales Totals',
-        xaxis_title='Date',
-        yaxis_title='Sales ($)',
-        xaxis=dict(tickangle=45),
-        template='plotly_white',
-        showlegend=False
-    )
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Sales', line=dict(color='#007bff'),
+        hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'))
+
+    fig.update_layout(title='Daily Sales Totals', xaxis_title='Date', yaxis_title='Sales ($)', xaxis=dict(tickangle=45),
+        template='plotly_white', showlegend=False)
 
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128, 128, 128, 0.3)')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128, 128, 128, 0.3)')
@@ -129,36 +117,20 @@ def generate_backtest_chart(start_date, end_date):
 def generate_residuals_histogram(residuals):
     fig = go.Figure()
 
-    fig.add_trace(go.Histogram(
-        x=residuals,
-        nbinsx=30,
-        name='Residuals',
+    fig.add_trace(go.Histogram(x=residuals, nbinsx=30, name='Residuals',
         marker=dict(color='lightblue', line=dict(color='darkblue', width=1)),
-        hovertemplate='Error: $%{x:,.2f}<br>Count: %{y}<extra></extra>'
-    ))
+        hovertemplate='Error: $%{x:,.2f}<br>Count: %{y}<extra></extra>'))
 
-    fig.add_vline(x=0, line_dash="dash", line_color="red",
-                  annotation_text="Zero Error", annotation_position="top")
+    fig.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="Zero Error", annotation_position="top")
 
     mean_residual = np.mean(residuals)
     fig.add_vline(x=mean_residual, line_dash="dot", line_color="green")
 
-    fig.add_annotation(
-        x=mean_residual,
-        y=1.05,
-        xref="x",
-        yref="paper",
-        text=f"Mean: ${mean_residual:,.2f}",
-        showarrow=False,
-        font=dict(size=12, color="green")
-    )
+    fig.add_annotation(x=mean_residual, y=1.05, xref="x", yref="paper", text=f"Mean: ${mean_residual:,.2f}",
+        showarrow=False, font=dict(size=12, color="green"))
 
-    fig.update_layout(
-        title='Residuals Distribution (Actual - Predicted)',
-        xaxis_title='Residual ($)',
-        yaxis_title='Frequency',
-        showlegend=False
-    )
+    fig.update_layout(title='Residuals Distribution (Actual - Predicted)', xaxis_title='Residual ($)',
+        yaxis_title='Frequency', showlegend=False)
 
     return pio.to_html(fig, full_html=False)
 
@@ -167,7 +139,7 @@ def generate_future_chart(num_days):
     """Generate future prediction chart starting from the day after CURRENT_DATE"""
     start_date = FUTURE_START_DATE.strftime("%Y-%m-%d")
     end_date = (FUTURE_START_DATE + timedelta(days=num_days - 1)).strftime("%Y-%m-%d")
-    
+
     future_dates = pd.DataFrame({'ds': pd.date_range(start=start_date, end=end_date, freq='D'), 'y': np.nan})
 
     model = load(PRODUCTION_MODEL)
@@ -186,15 +158,15 @@ def dashboard(request):
     # Calculate dates based on global configuration
     historical_min_date = HISTORICAL_START_DATE.strftime("%Y-%m-%d")
     historical_max_date = CURRENT_DATE.strftime("%Y-%m-%d")
-    
+
     # Default: show last 90 days of historical data
     default_historical_start = HISTORICAL_START_DATE.strftime("%Y-%m-%d")
     default_historical_end = CURRENT_DATE.strftime("%Y-%m-%d")
-    
+
     # Backtest constraints: last BACKTEST_DAYS before CURRENT_DATE
     backtest_min_date = (CURRENT_DATE - timedelta(days=BACKTEST_DAYS - 1)).strftime("%Y-%m-%d")
     backtest_max_date = CURRENT_DATE.strftime("%Y-%m-%d")
-    
+
     # Default: show full backtest period
     default_backtest_start = backtest_min_date
     default_backtest_end = backtest_max_date
@@ -203,7 +175,7 @@ def dashboard(request):
     future_start_date = FUTURE_START_DATE.strftime("%Y-%m-%d")
     max_future_days = MAX_FUTURE_DAYS
     future_warning_threshold = FUTURE_WARNING_THRESHOLD
-    
+
     # Default: 30 days of predictions
     default_future_days = 30
 
@@ -286,7 +258,7 @@ def dashboard(request):
             if future_days_str:
                 try:
                     future_days = int(future_days_str)
-                    
+
                     # Validate number of days
                     if future_days < 1:
                         future_warning = "Please select at least 1 day for predictions."
@@ -311,7 +283,7 @@ def dashboard(request):
 
                         # Store in session
                         request.session['future_chart_div'] = future_chart_div
-                        
+
                 except ValueError:
                     future_warning = "Please enter a valid number of days."
 
@@ -322,7 +294,7 @@ def dashboard(request):
             request.session['historical_chart_div'] = historical_chart_div
             request.session['historical_start'] = default_historical_start
             request.session['historical_end'] = default_historical_end
-            
+
         if not chart_div:
             chart_div, metrics, residuals_chart = generate_backtest_chart(default_backtest_start, default_backtest_end)
             request.session['chart_div'] = chart_div
@@ -337,25 +309,15 @@ def dashboard(request):
             request.session['future_days'] = default_future_days
 
     return render(request, "app/dashboard.html",
-                  {"historical_chart_div": historical_chart_div,
-                   "historical_min_date": historical_min_date,
-                   "historical_max_date": historical_max_date,
-                   "current_historical_start": current_historical_start,
-                   "current_historical_end": current_historical_end,
-                   "historical_error": historical_error,
-                   "chart_div": chart_div, 
-                   "metrics": metrics, 
-                   "residuals_chart": residuals_chart, 
-                   "backtest_min_date": backtest_min_date, 
-                   "backtest_max_date": backtest_max_date,
-                   "backtest_error": backtest_error,
-                   "future_chart_div": future_chart_div, 
-                   "future_start_date": future_start_date,
-                   "max_future_days": max_future_days,
-                   "future_warning": future_warning,
-                   "current_backtest_start": current_backtest_start, 
-                   "current_backtest_end": current_backtest_end,
-                   "current_future_days": current_future_days,
+                  {"historical_chart_div": historical_chart_div, "historical_min_date": historical_min_date,
+                   "historical_max_date": historical_max_date, "current_historical_start": current_historical_start,
+                   "current_historical_end": current_historical_end, "historical_error": historical_error,
+                   "chart_div": chart_div, "metrics": metrics, "residuals_chart": residuals_chart,
+                   "backtest_min_date": backtest_min_date, "backtest_max_date": backtest_max_date,
+                   "backtest_error": backtest_error, "future_chart_div": future_chart_div,
+                   "future_start_date": future_start_date, "max_future_days": max_future_days,
+                   "future_warning": future_warning, "current_backtest_start": current_backtest_start,
+                   "current_backtest_end": current_backtest_end, "current_future_days": current_future_days,
                    "simulated_current_date": CURRENT_DATE.strftime("%B %d, %Y")})
 
 

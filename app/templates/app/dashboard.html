@@ -2,114 +2,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Dashboard</title>
-  <link href="{% static 'app/styles.css' %}" rel="stylesheet">
+    <title>Dashboard</title>
+    <link href="{% static 'app/styles.css' %}" rel="stylesheet">
 </head>
 <body>
-  <h1>Dashboard</h1>
-  <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
+<h1>Dashboard</h1>
+<div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
     <strong>Simulated Current Date:</strong> {{ simulated_current_date }}
-  </div>
-  
-  <!-- Historical Sales Section -->
-  <div class="section">
+</div>
+
+<!-- Historical Sales Section -->
+<div class="section">
     <h2>Historical Daily Sales</h2>
     <div class="info">
-      View historical daily sales data from {{ historical_min_date }} through {{ historical_max_date }} (the simulated current date).
+        View historical daily sales data from {{ historical_min_date }} through {{ historical_max_date }} (the simulated
+        current date).
     </div>
     <form method="POST">
-      {% csrf_token %}
-      <label for="historical_start_date">Start Date:</label>
-      <input type="date" name="historical_start_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}" value="{{ current_historical_start }}" required>
-      <label for="historical_end_date">End Date:</label>
-      <input type="date" name="historical_end_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}" value="{{ current_historical_end }}" required>
-      <button type="submit" name="historical_submit">View Sales Data</button>
+        {% csrf_token %}
+        <label for="historical_start_date">Start Date:</label>
+        <input type="date" name="historical_start_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}"
+               value="{{ current_historical_start }}" required>
+        <label for="historical_end_date">End Date:</label>
+        <input type="date" name="historical_end_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}"
+               value="{{ current_historical_end }}" required>
+        <button type="submit" name="historical_submit">View Sales Data</button>
     </form>
-    
+
     {% if historical_error %}
-    <div class="error">
-      {{ historical_error }}
-    </div>
+        <div class="error">
+            {{ historical_error }}
+        </div>
     {% endif %}
-    
+
     {% if historical_chart_div %}
-    <!-- Plotly chart -->
-    {{ historical_chart_div|safe }}
+        <!-- Plotly chart -->
+        {{ historical_chart_div|safe }}
     {% endif %}
-  </div>
-  
-  <!-- Backtesting Section -->
-  <div class="section">
+</div>
+
+<!-- Backtesting Section -->
+<div class="section">
     <h2>Model Back-testing</h2>
     <div class="info">
-      Back-testing uses the last 30 days of data ({{ backtest_min_date }} to {{ backtest_max_date }}) that were held out from model training to evaluate performance.
+        Back-testing uses the last 30 days of data ({{ backtest_min_date }} to {{ backtest_max_date }}) that were held
+        out from model training to evaluate performance.
     </div>
     <form method="POST">
-      {% csrf_token %}
-      <label for="start_date">Start Date:</label>
-      <input type="date" name="start_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}" value="{{ current_backtest_start }}" required>
-      <label for="end_date">End Date:</label>
-      <input type="date" name="end_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}" value="{{ current_backtest_end }}" required>
-      <button type="submit" name="backtest_submit">Run Backtest</button>
+        {% csrf_token %}
+        <label for="start_date">Start Date:</label>
+        <input type="date" name="start_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}"
+               value="{{ current_backtest_start }}" required>
+        <label for="end_date">End Date:</label>
+        <input type="date" name="end_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}"
+               value="{{ current_backtest_end }}" required>
+        <button type="submit" name="backtest_submit">Run Backtest</button>
     </form>
-    
+
     {% if backtest_error %}
-    <div class="error">
-      {{ backtest_error }}
-    </div>
+        <div class="error">
+            {{ backtest_error }}
+        </div>
     {% endif %}
-    
+
     {% if chart_div %}
-    <!-- Plotly chart -->
-    {{ chart_div|safe }}
+        <!-- Plotly chart -->
+        {{ chart_div|safe }}
     {% endif %}
-    
+
     {% if metrics %}
-    <h3>Metrics</h3>
-    <ul>
-      <li>RMSE: {{ metrics.RMSE }}</li>
-      <li>MAE: {{ metrics.MAE }}</li>
-      <li>R²: {{ metrics.R2 }}</li>
-      <li>MAPE: {{ metrics.MAPE }}</li>
-      <li>MPE: {{ metrics.MPE }}</li>
-    </ul>
+        <h3>Metrics</h3>
+        <ul>
+            <li>RMSE: {{ metrics.RMSE }}</li>
+            <li>MAE: {{ metrics.MAE }}</li>
+            <li>R²: {{ metrics.R2 }}</li>
+            <li>MAPE: {{ metrics.MAPE }}</li>
+            <li>MPE: {{ metrics.MPE }}</li>
+        </ul>
     {% endif %}
-    
+
     {% if residuals_chart %}
-    <!-- Residuals histogram -->
-    <h3>Error Distribution</h3>
-    <p style="color: #666; font-size: 14px;">
-      This histogram shows the distribution of prediction errors. 
-      A distribution centered at zero indicates an unbiased model. 
-      Errors to the left (negative) mean the model over-predicted; errors to the right (positive) mean it under-predicted.
-    </p>
-    {{ residuals_chart|safe }}
+        <!-- Residuals histogram -->
+        <h3>Error Distribution</h3>
+        <p style="color: #666; font-size: 14px;">
+            This histogram shows the distribution of prediction errors.
+            A distribution centered at zero indicates an unbiased model.
+            Errors to the left (negative) mean the model over-predicted; errors to the right (positive) mean it
+            under-predicted.
+        </p>
+        {{ residuals_chart|safe }}
     {% endif %}
-  </div>
-  
-  <!-- Future Predictions Section -->
-  <div class="section">
+</div>
+
+<!-- Future Predictions Section -->
+<div class="section">
     <h2>Future Sales Predictions</h2>
     <div class="info">
-      Predictions begin on {{ future_start_date }} (the day after the simulated current date). The production model has been trained on all available data through {{ historical_max_date }}. You can predict up to {{ max_future_days }} days into the future.
+        Predictions begin on {{ future_start_date }} (the day after the simulated current date). The production model
+        has been trained on all available data through {{ historical_max_date }}. You can predict up
+        to {{ max_future_days }} days into the future.
     </div>
     <form method="POST">
-      {% csrf_token %}
-      <label for="future_days">Number of Days to Predict:</label>
-      <input type="number" name="future_days" min="1" max="{{ max_future_days }}" value="{{ current_future_days }}" required>
-      <button type="submit" name="future_submit">Generate Predictions</button>
+        {% csrf_token %}
+        <label for="future_days">Number of Days to Predict:</label>
+        <input type="number" name="future_days" min="1" max="{{ max_future_days }}" value="{{ current_future_days }}"
+               required>
+        <button type="submit" name="future_submit">Generate Predictions</button>
     </form>
-    
+
     {% if future_warning %}
-    <div class="warning">
-      {{ future_warning }}
-    </div>
+        <div class="warning">
+            {{ future_warning }}
+        </div>
     {% endif %}
-    
+
     {% if future_chart_div %}
-    <!-- Plotly chart for future predictions -->
-    {{ future_chart_div|safe }}
+        <!-- Plotly chart for future predictions -->
+        {{ future_chart_div|safe }}
     {% endif %}
-  </div>
+</div>
 </body>
 </html>
