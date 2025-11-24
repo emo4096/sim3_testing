@@ -15,15 +15,19 @@
 <div class="section">
     <h2>Training Data</h2>
     {% if chart_div_train %}
-        {{ chart_div_train|safe }}
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
-            <h3 style="margin-top: 0;">Training Performance Metrics</h3>
-            <ul style="list-style: none; padding: 0;">
-                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of Determination): <span style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_train }}</span></li>
-                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_train }}%</span></li>
-                <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MPE_train }}%</span></li>
-            </ul>
-        </div>
+    {{ chart_div_train|safe }}
+    <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+        <h3 style="margin-top: 0;">Training Performance Metrics</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of
+                Determination): <span
+                        style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_train }}</span></li>
+            <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage
+                Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_train }}%</span></li>
+            <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span
+                    style="float: right; font-weight: bold;">{{ metrics.MPE_train }}%</span></li>
+        </ul>
+    </div>
     {% endif %}
 </div>
 
@@ -31,19 +35,23 @@
 <div class="section">
     <h2>Test Data (Model Validation)</h2>
     {% if chart_div_test %}
-        {{ chart_div_test|safe }}
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
-            <h3 style="margin-top: 0;">Test Performance Metrics</h3>
-            <ul style="list-style: none; padding: 0;">
-                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of Determination): <span style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_test }}</span></li>
-                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_test }}%</span></li>
-                <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MPE_test }}%</span></li>
-            </ul>
-        </div>
-        {% if residuals_chart %}
-            <h3 style="margin-top: 30px;">Error Distribution</h3>
-            {{ residuals_chart|safe }}
-        {% endif %}
+    {{ chart_div_test|safe }}
+    <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+        <h3 style="margin-top: 0;">Test Performance Metrics</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of
+                Determination): <span
+                        style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_test }}</span></li>
+            <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage
+                Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_test }}%</span></li>
+            <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span
+                    style="float: right; font-weight: bold;">{{ metrics.MPE_test }}%</span></li>
+        </ul>
+    </div>
+    {% if residuals_chart %}
+    <h3 style="margin-top: 30px;">Error Distribution</h3>
+    {{ residuals_chart|safe }}
+    {% endif %}
     {% endif %}
 </div>
 
@@ -57,20 +65,20 @@
             {% csrf_token %}
             <label for="forecast_days" style="font-weight: bold;">Forecast Days:</label>
             <input
-                type="number"
-                id="forecast_days"
-                name="forecast_days"
-                value="{{ forecast_days }}"
-                min="7"
-                max="30"
-                step="1"
-                style="padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; width: 80px; font-size: 16px;"
+                    type="number"
+                    id="forecast_days"
+                    name="forecast_days"
+                    value="{{ forecast_days }}"
+                    min="7"
+                    max="30"
+                    step="1"
+                    style="padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; width: 80px; font-size: 16px;"
             >
             <button
-                type="submit"
-                style="padding: 8px 20px; background-color: #0072B2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;"
-                onmouseover="this.style.backgroundColor='#005a8c'"
-                onmouseout="this.style.backgroundColor='#0072B2'"
+                    type="submit"
+                    style="padding: 8px 20px; background-color: #0072B2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;"
+                    onmouseover="this.style.backgroundColor='#005a8c'"
+                    onmouseout="this.style.backgroundColor='#0072B2'"
             >
                 Update Forecast
             </button>
@@ -79,10 +87,11 @@
     </div>
 
     <p style="margin-bottom: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
-        <strong>Note:</strong> This forecast shows predicted sales for the next {{ forecast_days }} days following {{ simulated_current_date }}, generated using the production model.
+        <strong>Note:</strong> This forecast shows predicted sales for the next {{ forecast_days }} days following {{
+        simulated_current_date }}, generated using the production model.
     </p>
     {% if chart_div_prediction %}
-        {{ chart_div_prediction|safe }}
+    {{ chart_div_prediction|safe }}
     {% endif %}
 </div>
 </body>
