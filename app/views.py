@@ -41,7 +41,7 @@ def load_sales_data():
 def generate_backtest_chart():
     """Generate backtest chart and metrics"""
     daily_sales, _ = load_sales_data()
-    model = load(BACKTEST_MODEL)
+    model = load(BACKTEST_MODEL, map_location='cpu')
 
     # Split data (1.8% for test = ~30 days)
     df_train, df_test = model.split_df(daily_sales, freq="D", valid_p=0.018)
@@ -98,7 +98,7 @@ def generate_residuals_histogram(residuals):
 def generate_prediction_chart(target_days=30):
     """Generate recursive forecast using production model"""
     daily_sales, _ = load_sales_data()
-    model = load(PRODUCTION_MODEL)
+    model = load(PRODUCTION_MODEL, map_location='cpu')
 
     n_forecasts = model.n_forecasts
     n_iterations = (target_days + n_forecasts - 1) // n_forecasts
