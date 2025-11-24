@@ -7,9 +7,9 @@ from neuralprophet import load
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error
 
 # Relative paths to data and models
-CSV_FILE = "../content/train.csv"
-BACKTEST_MODEL = "../content/model_train.np"
-PRODUCTION_MODEL = "../content/model_production.np"
+CSV_FILE = "/content/train.csv"
+BACKTEST_MODEL = "/content/model_train.np"
+PRODUCTION_MODEL = "/content/model_production.np"
 
 # Cache for loaded data
 _cached_data = None
