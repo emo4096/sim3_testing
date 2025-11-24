@@ -8,10 +8,12 @@ h1 {
 }
 
 .section {
-  margin-bottom: 40px;
+  margin: 40px auto;
   padding: 20px;
   border: 1px solid #ddd;
   border-radius: 5px;
+  max-width: 50vw;
+  width: 100%;
 }
 
 .warning {
