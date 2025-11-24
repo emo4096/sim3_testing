@@ -17,7 +17,16 @@ _cached_current_date = None
 
 
 def load_sales_data():
-    """Load and cache sales data from CSV"""
+    """
+    Loads and caches sales data from CSV.
+
+    Arguments:
+        None
+
+    Returns:
+        daily_sales (pd.DataFrame): Processed daily sales data.
+        actual_last_date (pd.Timestamp): The last date in the dataset.
+    """
     global _cached_data, _cached_current_date
 
     if _cached_data is not None:
@@ -39,7 +48,18 @@ def load_sales_data():
 
 
 def generate_backtest_chart():
-    """Generate backtest chart and metrics"""
+    """
+    Generates backtest chart and metrics.
+
+    Arguments:
+        None
+
+    Returns:
+        chart_div_train (str): HTML div for training chart.
+        chart_div_test (str): HTML div for testing chart.
+        metrics_dict (dict): Dictionary of performance metrics.
+        residuals_chart (str): HTML div for residuals histogram.
+    """
     daily_sales, _ = load_sales_data()
     model = load(BACKTEST_MODEL, map_location='cpu')
 
@@ -84,7 +104,15 @@ def generate_backtest_chart():
 
 
 def generate_residuals_histogram(residuals):
-    """Generate residuals histogram"""
+    """
+    Generates residuals histogram.
+
+    Arguments:
+       None
+
+    Returns:
+        chart_div (str): HTML div for residuals histogram.
+    """
     mean_residual = np.mean(residuals)
 
     fig = go.Figure()
@@ -100,11 +128,20 @@ def generate_residuals_histogram(residuals):
     fig.update_layout(title='Residuals Distribution (Actual - Predicted)', xaxis_title='Residual ($)',
                       yaxis_title='Frequency', showlegend=False, template='plotly_white')
 
-    return pio.to_html(fig, full_html=False)
+    chart_div = pio.to_html(fig, full_html=False)
+    return chart_div
 
 
 def generate_prediction_chart(target_days=30):
-    """Generate recursive forecast using production model"""
+    """
+    Generates recursive forecast using production model.
+
+    Arguments:
+        target_days (int): Number of days to forecast.
+
+    Returns:
+        chart_div (str): HTML div for prediction chart.
+    """
     daily_sales, _ = load_sales_data()
     model = load(PRODUCTION_MODEL, map_location='cpu')
 
@@ -171,10 +208,20 @@ def generate_prediction_chart(target_days=30):
                       xaxis_title='Date', yaxis_title='Sales ($)', template='plotly_white', hovermode='closest',
                       height=500, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
 
-    return pio.to_html(fig, full_html=False), combined_forecast
+    chart_div = pio.to_html(fig, full_html=False)
+    return chart_div, combined_forecast
 
 
 def dashboard(request):
+    """
+    Renders the dashboard with backtest and prediction charts.
+
+    Arguments:
+        request (HttpRequest): The HTTP request object.
+
+    Returns:
+        HttpResponse: Rendered dashboard page.
+    """
     daily_sales, current_date = load_sales_data()
 
     # Handle forecast days input from form
@@ -221,8 +268,26 @@ def dashboard(request):
 
 
 def root_redirect(request):
+    """
+    Redirects root URL to home page.
+
+    Arguments:
+        request (HttpRequest): The HTTP request object.
+
+    Returns:
+        HttpResponse: Redirect response to home page.
+    """
     return redirect('/home')
 
 
 def home(request):
+    """
+    Renders the home page.
+
+    Arguments:
+        request (HttpRequest): The HTTP request object.
+
+    Returns:
+        HttpResponse: Rendered home page.
+    """
     return render(request, 'app/home.html')
