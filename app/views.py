@@ -1,324 +1,208 @@
-import sqlite3
-from datetime import datetime, timedelta
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
-from django.conf import settings
 from django.shortcuts import render, redirect
 from neuralprophet import load
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error
 
-DATABASE = "/content/ecommerce_data.sqlite3"
-BACKTEST_MODEL = "/content/sales_forecast_model_backtest.np"
-PRODUCTION_MODEL = "/content/sales_forecast_model_production.np"
+# Relative paths to data and models
+CSV_FILE = "../content/train.csv"
+BACKTEST_MODEL = "../content/model_train.np"
+PRODUCTION_MODEL = "../content/model_production.np"
 
-# Global configuration for simulated current date and data ranges
-CURRENT_DATE = datetime(2018, 6, 30)  # Simulated "today"
-FUTURE_START_DATE = CURRENT_DATE + timedelta(days=1)  # Predictions start the next day
-BACKTEST_DAYS = 30  # Number of days held out for backtesting
-HISTORICAL_START_DATE = datetime(2017, 1, 1)  # Beginning of available historical data
-MAX_FUTURE_DAYS = 60  # Maximum days allowed for future predictions
-FUTURE_WARNING_THRESHOLD = 30  # Warn if predicting beyond this many days
+# Cache for loaded data
+_cached_data = None
+_cached_current_date = None
 
 
-def generate_historical_sales_chart(start_date, end_date):
-    """Generate historical daily sales chart"""
-    con = sqlite3.connect(DATABASE)
-    df = pd.read_sql_query(f"""
-        SELECT
-            DATE(order_purchase_timestamp) AS ds, 
-            SUM(payment_value) AS y
-        FROM orders
-        JOIN order_payments
-            ON orders.order_id = order_payments.order_id
-        WHERE DATE(order_purchase_timestamp) BETWEEN '{start_date}' AND '{end_date}'
-          AND order_status != 'cancelled'
-        GROUP BY DATE(order_purchase_timestamp)
-        ORDER BY ds
-    """, con, parse_dates=['ds'])
-    con.close()
+def load_sales_data():
+    """Load and cache sales data from CSV"""
+    global _cached_data, _cached_current_date
 
-    if df.empty:
-        return None
+    if _cached_data is not None:
+        return _cached_data, _cached_current_date
 
-    df = df[df["y"] <= 100000]
+    df = pd.read_csv(CSV_FILE)
+    df['date'] = pd.to_datetime(df['date'])
+    actual_last_date = df['date'].max()
 
-    # Create Plotly figure
-    fig = go.Figure()
+    daily_sales = df.groupby('date')['sales'].sum().reset_index()
+    daily_sales.columns = ['ds', 'y']
+    daily_sales['y'] = daily_sales['y'].round(2)
+    daily_sales = daily_sales.sort_values('ds').reset_index(drop=True)
 
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Sales', line=dict(color='#007bff'),
-        hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'))
+    _cached_data = daily_sales
+    _cached_current_date = actual_last_date
 
-    fig.update_layout(title='Daily Sales Totals', xaxis_title='Date', yaxis_title='Sales ($)', xaxis=dict(tickangle=45),
-        template='plotly_white', showlegend=False)
-
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128, 128, 128, 0.3)')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128, 128, 128, 0.3)')
-
-    return pio.to_html(fig, full_html=False)
+    return daily_sales, actual_last_date
 
 
-def generate_backtest_chart(start_date, end_date):
+def generate_backtest_chart():
     """Generate backtest chart and metrics"""
-    con = sqlite3.connect(DATABASE)
-    df = pd.read_sql_query(f"""
-        SELECT
-            DATE(order_purchase_timestamp) AS ds, 
-            SUM(payment_value) AS y
-        FROM orders
-        JOIN order_payments
-            ON orders.order_id = order_payments.order_id
-        WHERE DATE(order_purchase_timestamp) BETWEEN '{start_date}' AND '{end_date}'
-          AND order_status != 'cancelled'
-        GROUP BY DATE(order_purchase_timestamp)
-        ORDER BY ds
-    """, con, parse_dates=['ds'])
-    con.close()
-
-    if df.empty:
-        return None, None, None
-
-    df = df[df["y"] <= 100000]
+    daily_sales, _ = load_sales_data()
     model = load(BACKTEST_MODEL)
-    forecast = model.predict(df)
 
-    y_true = df['y'].values
-    y_pred = forecast['yhat1'].values
+    # Split data (1.8% for test = ~30 days)
+    df_train, df_test = model.split_df(daily_sales, freq="D", valid_p=0.018)
 
-    # Metrics
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae = mean_absolute_error(y_true, y_pred)
-    r2 = r2_score(y_true, y_pred)
-    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-    mpe = np.mean((y_true - y_pred) / y_true) * 100
-    metrics = {"RMSE": f"${rmse:,.2f}", "MAE": f"${mae:,.2f}", "R2": f"{r2:.4f}", "MAPE": f"{mape:.2f}%",
-               "MPE": f"{mpe:.2f}%"}
+    # Generate predictions
+    forecast_train = model.predict(df_train)
+    forecast_test = model.predict(df_test)
 
-    # Create Plotly figure
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=y_true, mode='lines+markers', name='Actual', line=dict(color='blue'),
-                             hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'))
+    # Calculate metrics
+    train_merged = forecast_train[['ds', 'yhat1']].merge(df_train[['ds', 'y']], on='ds').dropna()
+    test_merged = forecast_test[['ds', 'yhat1']].merge(df_test[['ds', 'y']], on='ds').dropna()
 
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=y_pred, mode='lines+markers', name='Predicted', line=dict(color='red'),
-                             hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'))
+    y_true_train, y_pred_train = train_merged['y'].values, train_merged['yhat1'].values
+    y_true_test, y_pred_test = test_merged['y'].values, test_merged['yhat1'].values
 
-    fig.update_layout(title='Actual vs Predicted Sales', xaxis_title='Date', yaxis_title='Sales ($)')
-    chart_div = pio.to_html(fig, full_html=False)
+    metrics_dict = {'R2_train': f"{r2_score(y_true_train, y_pred_train):.4f}",
+        'R2_test': f"{r2_score(y_true_test, y_pred_test):.4f}",
+        'RMSE_train': f"${np.sqrt(mean_squared_error(y_true_train, y_pred_train)):,.2f}",
+        'RMSE_test': f"${np.sqrt(mean_squared_error(y_true_test, y_pred_test)):,.2f}",
+        'MAPE_train': f"{mean_absolute_percentage_error(y_true_train, y_pred_train) * 100:.2f}",
+        'MAPE_test': f"{mean_absolute_percentage_error(y_true_test, y_pred_test) * 100:.2f}",
+        'MPE_train': f"{np.mean((y_true_train - y_pred_train) / y_true_train) * 100:.2f}",
+        'MPE_test': f"{np.mean((y_true_test - y_pred_test) / y_true_test) * 100:.2f}", }
 
-    # Generate residuals histogram
-    residuals = y_true - y_pred
-    residuals_chart = generate_residuals_histogram(residuals)
+    # Generate charts
+    model.set_plotting_backend("plotly")
+    chart_div_train = pio.to_html(model.plot(forecast_train), full_html=False)
+    chart_div_test = pio.to_html(model.plot(forecast_test[-30:]), full_html=False)
+    residuals_chart = generate_residuals_histogram(y_true_test - y_pred_test)
 
-    return chart_div, metrics, residuals_chart
+    return chart_div_train, chart_div_test, metrics_dict, residuals_chart
 
 
 def generate_residuals_histogram(residuals):
-    fig = go.Figure()
+    """Generate residuals histogram"""
+    mean_residual = np.mean(residuals)
 
+    fig = go.Figure()
     fig.add_trace(go.Histogram(x=residuals, nbinsx=30, name='Residuals',
         marker=dict(color='lightblue', line=dict(color='darkblue', width=1)),
         hovertemplate='Error: $%{x:,.2f}<br>Count: %{y}<extra></extra>'))
 
     fig.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="Zero Error", annotation_position="top")
-
-    mean_residual = np.mean(residuals)
     fig.add_vline(x=mean_residual, line_dash="dot", line_color="green")
-
     fig.add_annotation(x=mean_residual, y=1.05, xref="x", yref="paper", text=f"Mean: ${mean_residual:,.2f}",
         showarrow=False, font=dict(size=12, color="green"))
 
     fig.update_layout(title='Residuals Distribution (Actual - Predicted)', xaxis_title='Residual ($)',
-        yaxis_title='Frequency', showlegend=False)
+        yaxis_title='Frequency', showlegend=False, template='plotly_white')
 
     return pio.to_html(fig, full_html=False)
 
 
-def generate_future_chart(num_days):
-    """Generate future prediction chart starting from the day after CURRENT_DATE"""
-    start_date = FUTURE_START_DATE.strftime("%Y-%m-%d")
-    end_date = (FUTURE_START_DATE + timedelta(days=num_days - 1)).strftime("%Y-%m-%d")
-
-    future_dates = pd.DataFrame({'ds': pd.date_range(start=start_date, end=end_date, freq='D'), 'y': np.nan})
-
+def generate_prediction_chart(target_days=30):
+    """Generate recursive forecast using production model"""
+    daily_sales, _ = load_sales_data()
     model = load(PRODUCTION_MODEL)
-    future_forecast = model.predict(future_dates)
 
-    fig_future = go.Figure()
-    fig_future.add_trace(
-        go.Scatter(x=future_forecast['ds'], y=future_forecast['yhat1'], mode='lines+markers', name='Predicted',
-                   line=dict(color='green'), hovertemplate='$%{y:,.2f}<br>Date: %{x}<extra></extra>'))
+    n_forecasts = model.n_forecasts
+    n_iterations = (target_days + n_forecasts - 1) // n_forecasts
 
-    fig_future.update_layout(title='Future Sales Predictions', xaxis_title='Date', yaxis_title='Predicted Sales ($)')
-    return pio.to_html(fig_future, full_html=False)
+    current_df = daily_sales.copy()
+    all_predictions = []
+
+    # Recursive forecasting loop
+    for iteration in range(n_iterations):
+        future_df = model.make_future_dataframe(df=current_df, periods=n_forecasts,
+            n_historic_predictions=len(current_df))
+        forecast = model.predict(future_df)
+
+        # Extract future predictions and combine yhat columns to fill gaps
+        future_forecast = forecast[forecast['ds'] > current_df['ds'].max()].copy()
+        if len(future_forecast) == 0:
+            break
+
+        yhat_cols = sorted([col for col in future_forecast.columns if col.startswith('yhat') and '%' not in col])
+        future_forecast['yhat'] = future_forecast[yhat_cols].bfill(axis=1).iloc[:, 0]
+
+        all_predictions.append(future_forecast[['ds', 'yhat']])
+
+        # Append predictions as "actuals" for next iteration
+        current_df = pd.concat([current_df, future_forecast[['ds', 'yhat']].rename(columns={'yhat': 'y'})],
+                               ignore_index=True)
+
+        # Keep only recent history
+        if len(current_df) > model.n_lags + 100:
+            current_df = current_df.iloc[-(model.n_lags + 100):].reset_index(drop=True)
+
+    if not all_predictions:
+        return "<p>Unable to generate predictions</p>"
+
+    # Combine and limit to target days
+    combined_forecast = pd.concat(all_predictions, ignore_index=True).sort_values('ds').reset_index(drop=True).head(
+        target_days)
+
+    # Create chart
+    fig = go.Figure()
+
+    # Historical data (strictly before forecast starts)
+    historical = daily_sales[daily_sales['ds'] < combined_forecast['ds'].min()].tail(60)
+    fig.add_trace(go.Scatter(x=historical['ds'], y=historical['y'], mode='lines+markers', name='Historical Sales',
+        line=dict(color='#0072B2', width=2), marker=dict(size=4),
+        hovertemplate='Date: %{x|%Y-%m-%d}<br>Sales: $%{y:,.2f}<extra></extra>'))
+
+    # Predictions
+    fig.add_trace(
+        go.Scatter(x=combined_forecast['ds'], y=combined_forecast['yhat'], mode='lines+markers', name='Predicted Sales',
+            line=dict(color='#D55E00', width=2, dash='dash'), marker=dict(size=6, symbol='diamond'),
+            hovertemplate='Date: %{x|%Y-%m-%d}<br>Forecast: $%{y:,.2f}<extra></extra>'))
+
+    # Forecast start line
+    forecast_start = daily_sales['ds'].max()
+    fig.add_shape(type="line", x0=forecast_start, x1=forecast_start, y0=0, y1=1, yref="paper",
+        line=dict(color="gray", width=2, dash="dot"))
+    fig.add_annotation(x=forecast_start, y=1.05, yref="paper", text="Forecast Start", showarrow=False,
+        font=dict(size=12, color="gray"))
+
+    fig.update_layout(title=f'{target_days}-Day Sales Forecast ({len(combined_forecast)} days predicted)',
+        xaxis_title='Date', yaxis_title='Sales ($)', template='plotly_white', hovermode='closest', height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+
+    return pio.to_html(fig, full_html=False)
 
 
 def dashboard(request):
-    # Calculate dates based on global configuration
-    historical_min_date = HISTORICAL_START_DATE.strftime("%Y-%m-%d")
-    historical_max_date = CURRENT_DATE.strftime("%Y-%m-%d")
+    daily_sales, current_date = load_sales_data()
 
-    # Default: show last 90 days of historical data
-    default_historical_start = HISTORICAL_START_DATE.strftime("%Y-%m-%d")
-    default_historical_end = CURRENT_DATE.strftime("%Y-%m-%d")
+    # Handle forecast days input from form
+    if request.method == 'POST':
+        try:
+            forecast_days = int(request.POST.get('forecast_days', 30))
+            forecast_days = max(7, min(30, forecast_days))  # Clamp between 7 and 30
+        except (ValueError, TypeError):
+            forecast_days = 30
 
-    # Backtest constraints: last BACKTEST_DAYS before CURRENT_DATE
-    backtest_min_date = (CURRENT_DATE - timedelta(days=BACKTEST_DAYS - 1)).strftime("%Y-%m-%d")
-    backtest_max_date = CURRENT_DATE.strftime("%Y-%m-%d")
-
-    # Default: show full backtest period
-    default_backtest_start = backtest_min_date
-    default_backtest_end = backtest_max_date
-
-    # Future prediction configuration
-    future_start_date = FUTURE_START_DATE.strftime("%Y-%m-%d")
-    max_future_days = MAX_FUTURE_DAYS
-    future_warning_threshold = FUTURE_WARNING_THRESHOLD
-
-    # Default: 30 days of predictions
-    default_future_days = 30
-
-    # Initialize from session or defaults
-    current_historical_start = request.session.get('historical_start', default_historical_start)
-    current_historical_end = request.session.get('historical_end', default_historical_end)
-    current_backtest_start = request.session.get('backtest_start', default_backtest_start)
-    current_backtest_end = request.session.get('backtest_end', default_backtest_end)
-    current_future_days = request.session.get('future_days', default_future_days)
-
-    # Get cached charts from session
-    historical_chart_div = request.session.get('historical_chart_div')
-    chart_div = request.session.get('chart_div')
-    metrics = request.session.get('metrics')
-    residuals_chart = request.session.get('residuals_chart')
-    future_chart_div = request.session.get('future_chart_div')
-    future_warning = request.session.get('future_warning')
-    historical_error = None
-    backtest_error = None
-
-    if request.method == "POST":
-        # Handle historical sales form
-        if "historical_submit" in request.POST:
-            start_date = request.POST.get("historical_start_date")
-            end_date = request.POST.get("historical_end_date")
-
-            # Validate date range is within allowed historical period
-            if start_date and end_date:
-                if start_date < historical_min_date:
-                    historical_error = f"Start date cannot be before {historical_min_date}."
-                elif end_date > historical_max_date:
-                    historical_error = f"End date cannot be after {historical_max_date}."
-                elif start_date > end_date:
-                    historical_error = "Start date must be before or equal to end date."
-                else:
-                    # Update current values and session
-                    current_historical_start = start_date
-                    current_historical_end = end_date
-                    request.session['historical_start'] = start_date
-                    request.session['historical_end'] = end_date
-
-                    # Generate new historical chart
-                    historical_chart_div = generate_historical_sales_chart(start_date, end_date)
-
-                    # Store in session
-                    request.session['historical_chart_div'] = historical_chart_div
-
-        # Handle backtesting form
-        elif "backtest_submit" in request.POST:
-            start_date = request.POST.get("start_date")
-            end_date = request.POST.get("end_date")
-
-            # Validate date range is within allowed backtest period
-            if start_date and end_date:
-                if start_date < backtest_min_date or start_date > backtest_max_date:
-                    backtest_error = f"Start date must be between {backtest_min_date} and {backtest_max_date}."
-                elif end_date < backtest_min_date or end_date > backtest_max_date:
-                    backtest_error = f"End date must be between {backtest_min_date} and {backtest_max_date}."
-                elif start_date > end_date:
-                    backtest_error = "Start date must be before or equal to end date."
-                else:
-                    # Update current values and session
-                    current_backtest_start = start_date
-                    current_backtest_end = end_date
-                    request.session['backtest_start'] = start_date
-                    request.session['backtest_end'] = end_date
-
-                    # Generate new backtest chart and residuals
-                    chart_div, metrics, residuals_chart = generate_backtest_chart(start_date, end_date)
-
-                    # Store in session
-                    request.session['chart_div'] = chart_div
-                    request.session['metrics'] = metrics
-                    request.session['residuals_chart'] = residuals_chart
-
-        # Handle future prediction form
-        elif "future_submit" in request.POST:
-            future_days_str = request.POST.get("future_days")
-
-            if future_days_str:
-                try:
-                    future_days = int(future_days_str)
-
-                    # Validate number of days
-                    if future_days < 1:
-                        future_warning = "Please select at least 1 day for predictions."
-                    elif future_days > max_future_days:
-                        future_warning = f"Maximum {max_future_days} days allowed for predictions."
-                    else:
-                        # Update current values and session
-                        current_future_days = future_days
-                        request.session['future_days'] = future_days
-
-                        # Check if more than threshold days (show warning)
-                        if future_days > future_warning_threshold:
-                            future_warning = f"Warning: Predicting more than {future_warning_threshold} days into the future can significantly decrease model accuracy."
-                        else:
-                            future_warning = None
-
-                        # Store warning in session
-                        request.session['future_warning'] = future_warning
-
-                        # Generate new future chart
-                        future_chart_div = generate_future_chart(future_days)
-
-                        # Store in session
-                        request.session['future_chart_div'] = future_chart_div
-
-                except ValueError:
-                    future_warning = "Please enter a valid number of days."
-
-    # Generate default charts on first load (no session data)
+        # Regenerate prediction chart with new days
+        chart_div_prediction = generate_prediction_chart(forecast_days)
+        request.session['chart_div_prediction'] = chart_div_prediction
+        request.session['forecast_days'] = forecast_days
     else:
-        if not historical_chart_div:
-            historical_chart_div = generate_historical_sales_chart(default_historical_start, default_historical_end)
-            request.session['historical_chart_div'] = historical_chart_div
-            request.session['historical_start'] = default_historical_start
-            request.session['historical_end'] = default_historical_end
+        forecast_days = request.session.get('forecast_days', 30)
 
-        if not chart_div:
-            chart_div, metrics, residuals_chart = generate_backtest_chart(default_backtest_start, default_backtest_end)
-            request.session['chart_div'] = chart_div
-            request.session['metrics'] = metrics
-            request.session['residuals_chart'] = residuals_chart
-            request.session['backtest_start'] = default_backtest_start
-            request.session['backtest_end'] = default_backtest_end
+    # Retrieve from session or generate
+    if not (chart_div_train := request.session.get('chart_div_train')):
+        chart_div_train, chart_div_test, metrics, residuals_chart = generate_backtest_chart()
+        request.session.update(
+            {'chart_div_train': chart_div_train, 'chart_div_test': chart_div_test, 'metrics': metrics,
+                'residuals_chart': residuals_chart})
+    else:
+        chart_div_test = request.session.get('chart_div_test')
+        metrics = request.session.get('metrics')
+        residuals_chart = request.session.get('residuals_chart')
 
-        if not future_chart_div:
-            future_chart_div = generate_future_chart(default_future_days)
-            request.session['future_chart_div'] = future_chart_div
-            request.session['future_days'] = default_future_days
+    if not (chart_div_prediction := request.session.get('chart_div_prediction')):
+        chart_div_prediction = generate_prediction_chart(forecast_days)
+        request.session['chart_div_prediction'] = chart_div_prediction
 
     return render(request, "app/dashboard.html",
-                  {"historical_chart_div": historical_chart_div, "historical_min_date": historical_min_date,
-                   "historical_max_date": historical_max_date, "current_historical_start": current_historical_start,
-                   "current_historical_end": current_historical_end, "historical_error": historical_error,
-                   "chart_div": chart_div, "metrics": metrics, "residuals_chart": residuals_chart,
-                   "backtest_min_date": backtest_min_date, "backtest_max_date": backtest_max_date,
-                   "backtest_error": backtest_error, "future_chart_div": future_chart_div,
-                   "future_start_date": future_start_date, "max_future_days": max_future_days,
-                   "future_warning": future_warning, "current_backtest_start": current_backtest_start,
-                   "current_backtest_end": current_backtest_end, "current_future_days": current_future_days,
-                   "simulated_current_date": CURRENT_DATE.strftime("%B %d, %Y")})
+                  {"chart_div_train": chart_div_train, "chart_div_test": chart_div_test, "metrics": metrics,
+                      "residuals_chart": residuals_chart, "chart_div_prediction": chart_div_prediction,
+                      "simulated_current_date": current_date.strftime("%B %d, %Y"), "forecast_days": forecast_days})
 
 
 def root_redirect(request):
