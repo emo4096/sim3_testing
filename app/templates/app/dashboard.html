@@ -2,123 +2,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Dashboard</title>
+    <title>Sales Forecast Dashboard</title>
     <link href="{% static 'app/styles.css' %}" rel="stylesheet">
 </head>
 <body>
-<h1>Dashboard</h1>
+<h1>Sales Forecast Dashboard</h1>
 <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
-    <strong>Simulated Current Date:</strong> {{ simulated_current_date }}
+    <strong>Current Date (Last Date in Data):</strong> {{ simulated_current_date }}
 </div>
 
-<!-- Historical Sales Section -->
+<!-- Training Data Section -->
 <div class="section">
-    <h2>Historical Daily Sales</h2>
-    <div class="info">
-        View historical daily sales data from {{ historical_min_date }} through {{ historical_max_date }} (the simulated
-        current date).
-    </div>
-    <form method="POST">
-        {% csrf_token %}
-        <label for="historical_start_date">Start Date:</label>
-        <input type="date" name="historical_start_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}"
-               value="{{ current_historical_start }}" required>
-        <label for="historical_end_date">End Date:</label>
-        <input type="date" name="historical_end_date" min="{{ historical_min_date }}" max="{{ historical_max_date }}"
-               value="{{ current_historical_end }}" required>
-        <button type="submit" name="historical_submit">View Sales Data</button>
-    </form>
-
-    {% if historical_error %}
-        <div class="error">
-            {{ historical_error }}
+    <h2>Training Data</h2>
+    {% if chart_div_train %}
+        {{ chart_div_train|safe }}
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+            <h3 style="margin-top: 0;">Training Performance Metrics</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of Determination): <span style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_train }}</span></li>
+                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_train }}%</span></li>
+                <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MPE_train }}%</span></li>
+            </ul>
         </div>
-    {% endif %}
-
-    {% if historical_chart_div %}
-        <!-- Plotly chart -->
-        {{ historical_chart_div|safe }}
     {% endif %}
 </div>
 
-<!-- Backtesting Section -->
+<!-- Test Data Section -->
 <div class="section">
-    <h2>Model Back-testing</h2>
-    <div class="info">
-        Back-testing uses the last 30 days of data ({{ backtest_min_date }} to {{ backtest_max_date }}) that were held
-        out from model training to evaluate performance.
-    </div>
-    <form method="POST">
-        {% csrf_token %}
-        <label for="start_date">Start Date:</label>
-        <input type="date" name="start_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}"
-               value="{{ current_backtest_start }}" required>
-        <label for="end_date">End Date:</label>
-        <input type="date" name="end_date" min="{{ backtest_min_date }}" max="{{ backtest_max_date }}"
-               value="{{ current_backtest_end }}" required>
-        <button type="submit" name="backtest_submit">Run Backtest</button>
-    </form>
-
-    {% if backtest_error %}
-        <div class="error">
-            {{ backtest_error }}
+    <h2>Test Data (Model Validation)</h2>
+    {% if chart_div_test %}
+        {{ chart_div_test|safe }}
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+            <h3 style="margin-top: 0;">Test Performance Metrics</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>R²</strong> (Coefficient of Determination): <span style="float: right; font-weight: bold; color: #28a745;">{{ metrics.R2_test }}</span></li>
+                <li style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>MAPE</strong> (Mean Absolute Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MAPE_test }}%</span></li>
+                <li style="padding: 8px;"><strong>MPE</strong> (Mean Percentage Error): <span style="float: right; font-weight: bold;">{{ metrics.MPE_test }}%</span></li>
+            </ul>
         </div>
-    {% endif %}
-
-    {% if chart_div %}
-        <!-- Plotly chart -->
-        {{ chart_div|safe }}
-    {% endif %}
-
-    {% if metrics %}
-        <h3>Metrics</h3>
-        <ul>
-            <li>RMSE: {{ metrics.RMSE }}</li>
-            <li>MAE: {{ metrics.MAE }}</li>
-            <li>R²: {{ metrics.R2 }}</li>
-            <li>MAPE: {{ metrics.MAPE }}</li>
-            <li>MPE: {{ metrics.MPE }}</li>
-        </ul>
-    {% endif %}
-
-    {% if residuals_chart %}
-        <!-- Residuals histogram -->
-        <h3>Error Distribution</h3>
-        <p style="color: #666; font-size: 14px;">
-            This histogram shows the distribution of prediction errors.
-            A distribution centered at zero indicates an unbiased model.
-            Errors to the left (negative) mean the model over-predicted; errors to the right (positive) mean it
-            under-predicted.
-        </p>
-        {{ residuals_chart|safe }}
+        {% if residuals_chart %}
+            <h3 style="margin-top: 30px;">Error Distribution</h3>
+            {{ residuals_chart|safe }}
+        {% endif %}
     {% endif %}
 </div>
 
-<!-- Future Predictions Section -->
+<!-- Prediction Section -->
 <div class="section">
-    <h2>Future Sales Predictions</h2>
-    <div class="info">
-        Predictions begin on {{ future_start_date }} (the day after the simulated current date). The production model
-        has been trained on all available data through {{ historical_max_date }}. You can predict up
-        to {{ max_future_days }} days into the future.
+    <h2>Sales Forecast</h2>
+
+    <!-- Forecast Days Selector -->
+    <div style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+        <form method="post" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            {% csrf_token %}
+            <label for="forecast_days" style="font-weight: bold;">Forecast Days:</label>
+            <input
+                type="number"
+                id="forecast_days"
+                name="forecast_days"
+                value="{{ forecast_days }}"
+                min="7"
+                max="30"
+                step="1"
+                style="padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; width: 80px; font-size: 16px;"
+            >
+            <button
+                type="submit"
+                style="padding: 8px 20px; background-color: #0072B2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;"
+                onmouseover="this.style.backgroundColor='#005a8c'"
+                onmouseout="this.style.backgroundColor='#0072B2'"
+            >
+                Update Forecast
+            </button>
+            <span style="color: #6c757d; font-size: 14px;">(Between 7 and 30 days)</span>
+        </form>
     </div>
-    <form method="POST">
-        {% csrf_token %}
-        <label for="future_days">Number of Days to Predict:</label>
-        <input type="number" name="future_days" min="1" max="{{ max_future_days }}" value="{{ current_future_days }}"
-               required>
-        <button type="submit" name="future_submit">Generate Predictions</button>
-    </form>
 
-    {% if future_warning %}
-        <div class="warning">
-            {{ future_warning }}
-        </div>
-    {% endif %}
-
-    {% if future_chart_div %}
-        <!-- Plotly chart for future predictions -->
-        {{ future_chart_div|safe }}
+    <p style="margin-bottom: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+        <strong>Note:</strong> This forecast shows predicted sales for the next {{ forecast_days }} days following {{ simulated_current_date }}, generated using the production model.
+    </p>
+    {% if chart_div_prediction %}
+        {{ chart_div_prediction|safe }}
     {% endif %}
 </div>
 </body>
