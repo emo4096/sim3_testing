@@ -7,8 +7,8 @@
 </head>
 <body>
 <h1>Sales Forecast Dashboard</h1>
-<div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
-    <strong>Current Date (Last Date in Data):</strong> {{ simulated_current_date }}
+<div class=section style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
+    <strong>Current Date:</strong> {{ simulated_current_date }}
 </div>
 
 <!-- Training Data Section -->
@@ -87,8 +87,9 @@
     </div>
 
     <p style="margin-bottom: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
-        <strong>Note:</strong> This forecast shows predicted sales for the next {{ forecast_days }} days following the
-        current date, generated using the production model.
+        Predicting sales for the next {{ forecast_days }} days following {{ simulated_current_date }}.<br>
+        <br>
+        Predictions made past 7 days may have increased uncertainty.
     </p>
     {% if chart_div_prediction %}
     {{ chart_div_prediction|safe }}
