@@ -55,6 +55,14 @@
     {% endif %}
 </div>
 
+<!-- Trends and Seasonality Section -->
+<div class="section">
+    <h2>Trends and Seasonality</h2>
+    {% if chart_div_trends %}
+    {{ chart_div_trends|safe }}
+    {% endif %}
+</div>
+
 <!-- Prediction Section -->
 <div class="section">
     <h2>Sales Forecast</h2>

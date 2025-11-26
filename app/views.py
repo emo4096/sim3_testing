@@ -63,6 +63,7 @@ def generate_backtest_chart():
         chart_div_test (str): HTML div for testing chart.
         metrics_dict (dict): Dictionary of performance metrics.
         residuals_chart (str): HTML div for residuals histogram.
+        chart_div_trends (str): HTML div for trends and seasonality chart.
     """
 
     # Load data and model
@@ -95,18 +96,21 @@ def generate_backtest_chart():
     # Generate charts and export to HTML divs
     model.set_plotting_backend("plotly")
     chart_train = model.plot(forecast_train)
-    chart_train.update_layout(autosize=True, width=None, height=500  # or whatever height you want
-                              )
+    chart_train.update_layout(autosize=True, width=None, height=500)
 
     chart_test = model.plot(forecast_test[-30:])
-    chart_test.update_layout(autosize=True, width=None, height=500  # or whatever height you want
-                             )
+    chart_test.update_layout(autosize=True, width=None, height=500)
+
+    chart_trends = model.plot_parameters(components=["trend", "seasonality"])
+    chart_trends.update_layout(autosize=True, width=None, height=500)
 
     chart_div_train = pio.to_html(chart_train, full_html=False)
     chart_div_test = pio.to_html(chart_test, full_html=False)
+    chart_div_trends = pio.to_html(chart_trends, full_html=False)
+
     residuals_chart = generate_residuals_histogram(y_true_test - y_pred_test)
 
-    return chart_div_train, chart_div_test, metrics_dict, residuals_chart
+    return chart_div_train, chart_div_test, metrics_dict, residuals_chart, chart_div_trends
 
 
 def generate_residuals_histogram(residuals):
@@ -245,7 +249,7 @@ def dashboard(request):
     if request.method == 'POST':
         try:
             forecast_days = int(request.POST.get('forecast_days', 30))
-            forecast_days = max(7, min(30, forecast_days))  # Clamp between 7 and 30
+            forecast_days = max(7, min(30, forecast_days))
         except (ValueError, TypeError):
             forecast_days = 30
 
@@ -259,16 +263,17 @@ def dashboard(request):
     else:
         forecast_days = request.session.get('forecast_days', 30)
 
-    # Determine if charts need to be generated or loaded from session
+        # Determine if charts need to be generated or loaded from session
     if not (chart_div_train := request.session.get('chart_div_train')):
-        chart_div_train, chart_div_test, metrics, residuals_chart = generate_backtest_chart()
+        chart_div_train, chart_div_test, metrics, residuals_chart, chart_div_trends = generate_backtest_chart()
         request.session.update(
             {'chart_div_train': chart_div_train, 'chart_div_test': chart_div_test, 'metrics': metrics,
-             'residuals_chart': residuals_chart})
+             'residuals_chart': residuals_chart, 'chart_div_trends': chart_div_trends})
     else:
         chart_div_test = request.session.get('chart_div_test')
         metrics = request.session.get('metrics')
         residuals_chart = request.session.get('residuals_chart')
+        chart_div_trends = request.session.get('chart_div_trends')
 
     if not (chart_div_prediction := request.session.get('chart_div_prediction')):
         chart_div_prediction, forecast_table = generate_prediction_chart(forecast_days)
@@ -280,6 +285,7 @@ def dashboard(request):
     return render(request, "app/dashboard.html",
                   {"chart_div_train": chart_div_train, "chart_div_test": chart_div_test, "metrics": metrics,
                    "residuals_chart": residuals_chart, "chart_div_prediction": chart_div_prediction,
+                   "chart_div_trends": chart_div_trends,
                    "simulated_current_date": current_date.strftime("%B %d, %Y"), "forecast_days": forecast_days,
                    "forecast_table": request.session.get('forecast_table')})
 
